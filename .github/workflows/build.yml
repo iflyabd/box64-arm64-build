@@ -1,0 +1,36 @@
+name: Build box64 for ARM64
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Install deps
+        run: sudo apt-get update -q && sudo apt-get install -y -q cmake make gcc python3 git
+
+      - name: Clone box64
+        run: git clone --depth 1 https://github.com/ptitSeb/box64.git src
+
+      - name: Configure
+        run: cmake -S src -B build -DARM_DYNAREC=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Build
+        run: cmake --build build -j "$(nproc)"
+
+      - name: Stage install tree
+        run: DESTDIR="$PWD/pkg" cmake --install build
+
+      - name: Version stamp
+        run: ./build/box64 --version; git -C src rev-parse --short HEAD > pkg/BOX64_COMMIT || true
+
+      - name: Tarball
+        run: tar -czf box64-arm64.tar.gz -C pkg .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: box64-arm64
+          path: box64-arm64.tar.gz
